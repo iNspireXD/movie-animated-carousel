@@ -98,7 +98,7 @@ export default function Page() {
                   {item.title}
                 </Text>
                 <Rating rating={item.rating} />
-                <Genre genre={item.genres} />
+                <Genre genres={item.genres} />
                 <Text style={{ fontSize: 12 }} numberOfLines={3}>
                   {item.description}
                 </Text>
