@@ -1,4 +1,3 @@
-import { Link } from "expo-router";
 import {
   FlatList,
   Image,
@@ -12,69 +11,103 @@ import { memo, useEffect, useState } from "react";
 import { useFetchMovies } from "../hooks/useFetchMovies";
 import { Movie } from "../hooks/useFetchMovies";
 import Genre from "../components/Genre";
-import { StatusBar } from "expo-status-bar";
 import Rating from "../components/Rating";
+import Loading from "../components/Loading";
 
 const { width, height } = Dimensions.get("window");
 const SPACING = 10;
 const ITEM_SIZE = Platform.OS === "ios" ? width * 0.72 : width * 0.74;
 const EMPTY_ITEM_SIZE = (width - ITEM_SIZE) / 2;
 const BACKDROP_HEIGHT = height * 0.65;
-
-const Loading = () => (
-  <View style={styles.loadingContainer}>
-    <Text style={styles.paragraph}>Loading...</Text>
-  </View>
-);
+import Animated, {
+  useSharedValue,
+  withSpring,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolate,
+} from "react-native-reanimated";
 
 //using memoization for performance when rendering large list
-const RenderItem = memo(({ item, index }: { item: Movie; index: number }) => {
-  if (!item.poster) {
-    return <View style={{ width: EMPTY_ITEM_SIZE }} />;
-  }
-  return (
-    <View style={{ width: ITEM_SIZE }}>
-      <View
-        style={{
-          marginHorizontal: SPACING,
-          padding: SPACING * 2,
-          alignItems: "center",
-          backgroundColor: "white",
-          borderRadius: 34,
-        }}
-      >
-        <Image source={{ uri: item.poster }} style={styles.posterImage} />
-        <Text style={{ fontSize: 18 }} numberOfLines={1}>
-          {item.title}
-        </Text>
-        <Rating rating={item.rating} />
-        <Genre genres={item.genres} />
-        <Text style={{ fontSize: 12, textAlign: "center" }} numberOfLines={3}>
-          {item.description}
-        </Text>
+const RenderItem = memo(
+  ({
+    item,
+    index,
+    translateX,
+  }: {
+    item: Movie;
+    index: number;
+    translateX: Animated.SharedValue<number>;
+  }) => {
+    const inputRange = [
+      (index - 2) * ITEM_SIZE,
+      (index - 1) * ITEM_SIZE,
+      index * ITEM_SIZE,
+    ];
+
+    const rStyle = useAnimatedStyle(() => {
+      const translateY = interpolate(
+        translateX.value,
+        inputRange,
+        [100, 50, 100],
+        Extrapolate.CLAMP
+      );
+
+      return {
+        transform: [{ translateY }],
+      };
+    });
+
+    if (!item.poster) {
+      return (
+        <View
+          style={{
+            width: EMPTY_ITEM_SIZE,
+          }}
+        />
+      );
+    }
+    return (
+      <View style={{ width: ITEM_SIZE }}>
+        <Animated.View
+          style={[
+            {
+              marginHorizontal: SPACING,
+              padding: SPACING * 2,
+              alignItems: "center",
+              backgroundColor: "white",
+              borderRadius: 34,
+            },
+            rStyle,
+          ]}
+        >
+          <Image source={{ uri: item.poster }} style={styles.posterImage} />
+          <Text style={{ fontSize: 18 }} numberOfLines={1}>
+            {item.title}
+          </Text>
+          <Rating rating={item.rating} />
+          <Genre genres={item.genres} />
+          <Text style={{ fontSize: 12, textAlign: "center" }} numberOfLines={3}>
+            {item.description}
+          </Text>
+        </Animated.View>
       </View>
-    </View>
-  );
-});
+    );
+  }
+);
 
 export default function Page() {
   const [movies, setMovies] = useState<Movie[]>([]);
 
-  //empty item for fake space
-  const emptyObject = {
-    key: "",
-    title: "",
-    poster: "",
-    backdrop: "",
-    rating: "",
-    description: "",
-    releaseDate: "",
-    genres: "",
-  };
+  const translateX = useSharedValue(0);
+  const scrollHandler = useAnimatedScrollHandler((event) => {
+    translateX.value = event.contentOffset.x;
+  });
 
   useEffect(() => {
     async function fetchData() {
       const movies = await useFetchMovies();
+      //empty item for fake space
       const emptyObject = {
         title: "",
         poster: "",
@@ -99,38 +132,35 @@ export default function Page() {
 
   return (
     <View style={styles.container}>
-      <StatusBar hidden />
-      <FlatList
+      <Animated.FlatList
         data={movies}
         keyExtractor={(item, index) => `${item.key}-${index}`}
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ alignItems: "center" }}
         scrollEventThrottle={16}
-        renderItem={({ item, index }) => (
-          <RenderItem item={item} index={index} />
-        )}
+        snapToInterval={ITEM_SIZE}
+        snapToAlignment="start"
+        decelerationRate={0.9}
+        bounces={false}
+        onScroll={scrollHandler}
+        renderToHardwareTextureAndroid
+        renderItem={({ item, index }) => {
+          return (
+            <RenderItem item={item} index={index} translateX={translateX} />
+          );
+        }}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   container: {
     flex: 1,
     backgroundColor: "white",
   },
-  paragraph: {
-    margin: 24,
-    fontSize: 18,
-    fontWeight: "bold",
-    textAlign: "center",
-  },
+
   posterImage: {
     width: "100%",
     height: ITEM_SIZE * 1.2,
