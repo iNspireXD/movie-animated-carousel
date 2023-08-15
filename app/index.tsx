@@ -13,10 +13,11 @@ import { useFetchMovies } from "../hooks/useFetchMovies";
 import { Movie } from "../hooks/useFetchMovies";
 import Genre from "../components/Genre";
 import { StatusBar } from "expo-status-bar";
+import Rating from "../components/Rating";
 
-const { width, height } = Dimensions.get("screen");
+const { width, height } = Dimensions.get("window");
 const SPACING = 10;
-const ITEM_SIZE = width * 0.6;
+const ITEM_SIZE = Platform.OS === "ios" ? width * 0.72 : width * 0.74;
 const EMPTY_ITEM_SIZE = (width - ITEM_SIZE) / 2;
 const BACKDROP_HEIGHT = height * 0.65;
 
@@ -27,14 +28,39 @@ const Loading = () => (
 );
 
 export default function Page() {
-  const [movies, setMovies] = useState<Movie[]>();
+  const [movies, setMovies] = useState<Movie[]>([]);
+
+  //empty item for fake space
+  const emptyObject = {
+    key: "",
+    title: "",
+    poster: "",
+    backdrop: "",
+    rating: "",
+    description: "",
+    releaseDate: "",
+    genres: "",
+  };
 
   useEffect(() => {
     async function fetchData() {
       const movies = await useFetchMovies();
-      setMovies(movies);
+      const emptyObject = {
+        title: "",
+        poster: "",
+        backdrop: "",
+        rating: 0,
+        description: "",
+        releaseDate: "",
+        genres: [],
+      };
+      setMovies([
+        { key: "space-left", ...emptyObject },
+        ...movies,
+        { key: "space-right", ...emptyObject },
+      ]);
     }
-    if (movies?.length === 0) {
+    if (movies.length === 0) {
       fetchData();
     }
   }, [movies]);
@@ -45,17 +71,11 @@ export default function Page() {
     <View style={styles.container}>
       <StatusBar hidden />
       <FlatList
-        showsHorizontalScrollIndicator={false}
         data={movies}
-        keyExtractor={(item) => item.key}
+        keyExtractor={(item, index) => `${item.key}-${index}`}
         horizontal
-        bounces={false}
-        decelerationRate={Platform.OS === "ios" ? 0 : 0.98}
-        renderToHardwareTextureAndroid
-        scrollEventThrottle={16}
-        snapToAlignment="start"
-        snapToInterval={ITEM_SIZE}
         contentContainerStyle={{ alignItems: "center" }}
+        scrollEventThrottle={16}
         renderItem={({ item, index }) => {
           if (!item.poster) return <View style={{ width: EMPTY_ITEM_SIZE }} />;
 
@@ -77,6 +97,8 @@ export default function Page() {
                 <Text style={{ fontSize: 24 }} numberOfLines={1}>
                   {item.title}
                 </Text>
+                <Rating rating={item.rating} />
+                <Genre genre={item.genres} />
                 <Text style={{ fontSize: 12 }} numberOfLines={3}>
                   {item.description}
                 </Text>
@@ -97,6 +119,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+    backgroundColor: "white",
   },
   paragraph: {
     margin: 24,

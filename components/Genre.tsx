@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from "react-native";
 import React from "react";
 
 type Props = {
-  genre: string;
+  genre: string[];
 };
 
 const Genre = ({ genre }: Props) => {
