@@ -8,7 +8,7 @@ import {
   View,
   Dimensions,
 } from "react-native";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { useFetchMovies } from "../hooks/useFetchMovies";
 import { Movie } from "../hooks/useFetchMovies";
 import Genre from "../components/Genre";
@@ -26,6 +26,36 @@ const Loading = () => (
     <Text style={styles.paragraph}>Loading...</Text>
   </View>
 );
+
+//using memoization for performance when rendering large list
+const RenderItem = memo(({ item, index }: { item: Movie; index: number }) => {
+  if (!item.poster) {
+    return <View style={{ width: EMPTY_ITEM_SIZE }} />;
+  }
+  return (
+    <View style={{ width: ITEM_SIZE }}>
+      <View
+        style={{
+          marginHorizontal: SPACING,
+          padding: SPACING * 2,
+          alignItems: "center",
+          backgroundColor: "white",
+          borderRadius: 34,
+        }}
+      >
+        <Image source={{ uri: item.poster }} style={styles.posterImage} />
+        <Text style={{ fontSize: 18 }} numberOfLines={1}>
+          {item.title}
+        </Text>
+        <Rating rating={item.rating} />
+        <Genre genres={item.genres} />
+        <Text style={{ fontSize: 12, textAlign: "center" }} numberOfLines={3}>
+          {item.description}
+        </Text>
+      </View>
+    </View>
+  );
+});
 
 export default function Page() {
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -74,38 +104,12 @@ export default function Page() {
         data={movies}
         keyExtractor={(item, index) => `${item.key}-${index}`}
         horizontal
+        showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ alignItems: "center" }}
         scrollEventThrottle={16}
-        renderItem={({ item, index }) => {
-          if (!item.poster) return <View style={{ width: EMPTY_ITEM_SIZE }} />;
-
-          return (
-            <View style={{ width: ITEM_SIZE }}>
-              <View
-                style={{
-                  marginHorizontal: SPACING,
-                  padding: SPACING * 2,
-                  alignItems: "center",
-                  backgroundColor: "white",
-                  borderRadius: 34,
-                }}
-              >
-                <Image
-                  source={{ uri: item.poster }}
-                  style={styles.posterImage}
-                />
-                <Text style={{ fontSize: 24 }} numberOfLines={1}>
-                  {item.title}
-                </Text>
-                <Rating rating={item.rating} />
-                <Genre genres={item.genres} />
-                <Text style={{ fontSize: 12 }} numberOfLines={3}>
-                  {item.description}
-                </Text>
-              </View>
-            </View>
-          );
-        }}
+        renderItem={({ item, index }) => (
+          <RenderItem item={item} index={index} />
+        )}
       />
     </View>
   );
