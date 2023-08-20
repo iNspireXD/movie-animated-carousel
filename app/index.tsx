@@ -6,7 +6,6 @@ import {
   Text,
   View,
   Dimensions,
-  Animated,
 } from "react-native";
 import { memo, useEffect, useRef, useState } from "react";
 import { useFetchMovies } from "../hooks/useFetchMovies";
@@ -20,6 +19,13 @@ const SPACING = 10;
 const ITEM_SIZE = Platform.OS === "ios" ? width * 0.72 : width * 0.74;
 const EMPTY_ITEM_SIZE = (width - ITEM_SIZE) / 2;
 import Backdrop from "../components/Backdrop";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  useAnimatedScrollHandler,
+  interpolate,
+  Extrapolate,
+} from "react-native-reanimated";
 
 //using memoization for performance when rendering large list
 const RenderItem = memo(
@@ -30,7 +36,7 @@ const RenderItem = memo(
   }: {
     item: Movie;
     index: number;
-    scrollX: Animated.Value;
+    scrollX: Animated.SharedValue<number>;
   }) => {
     if (!item.poster) {
       return (
@@ -47,10 +53,16 @@ const RenderItem = memo(
       index * ITEM_SIZE,
     ];
 
-    const translateY = scrollX.interpolate({
-      inputRange,
-      outputRange: [100, 50, 100],
-      extrapolate: "clamp",
+    const rstyle = useAnimatedStyle(() => {
+      const translateY = interpolate(
+        scrollX.value,
+        inputRange,
+        [100, 50, 100],
+        Extrapolate.CLAMP
+      );
+      return {
+        transform: [{ translateY }],
+      };
     });
 
     return (
@@ -63,8 +75,8 @@ const RenderItem = memo(
               alignItems: "center",
               backgroundColor: "white",
               borderRadius: 34,
-              transform: [{ translateY }],
             },
+            rstyle,
           ]}
         >
           <Image source={{ uri: item.poster }} style={styles.posterImage} />
@@ -84,7 +96,10 @@ const RenderItem = memo(
 
 export default function Page() {
   const [movies, setMovies] = useState<Movie[]>([]);
-  const scrollX = useRef(new Animated.Value(0)).current;
+  const scrollX = useSharedValue(0);
+  const scrollHandler = useAnimatedScrollHandler((event) => {
+    scrollX.value = event.contentOffset.x;
+  });
 
   useEffect(() => {
     async function fetchData() {
@@ -126,10 +141,7 @@ export default function Page() {
         snapToAlignment="start"
         decelerationRate={0.9}
         bounces={false}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-          { useNativeDriver: false }
-        )}
+        onScroll={scrollHandler}
         renderToHardwareTextureAndroid
         renderItem={({ item, index }) => {
           return <RenderItem item={item} index={index} scrollX={scrollX} />;

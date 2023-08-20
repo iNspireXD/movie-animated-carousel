@@ -1,18 +1,62 @@
-import {
-  View,
-  Dimensions,
-  FlatList,
-  Image,
-  Platform,
-  Animated,
-} from "react-native";
-import React, { useRef } from "react";
+import { View, Dimensions, FlatList, Image, Platform } from "react-native";
+import React, { memo, useRef } from "react";
 import { Movie } from "../hooks/useFetchMovies";
 import { LinearGradient } from "expo-linear-gradient";
+import Animated, {
+  interpolate,
+  useAnimatedStyle,
+} from "react-native-reanimated";
+
+const RenderItem = memo(
+  ({
+    item,
+    index,
+    scrollX,
+  }: {
+    item: Movie;
+    index: number;
+    scrollX: Animated.SharedValue<number>;
+  }) => {
+    if (!item.backdrop) {
+      return null;
+    }
+    const inputRange = [(index - 2) * ITEM_SIZE, (index - 1) * ITEM_SIZE];
+
+    const rstyle = useAnimatedStyle(() => {
+      const translateX = interpolate(scrollX.value, inputRange, [0, width]);
+      return {
+        width: translateX,
+      };
+    });
+
+    return (
+      <Animated.View
+        removeClippedSubviews={false}
+        style={[
+          {
+            position: "absolute",
+            height,
+            overflow: "hidden",
+          },
+          rstyle,
+        ]}
+      >
+        <Image
+          source={{ uri: item.backdrop }}
+          style={{
+            width,
+            height: BACKDROP_HEIGHT,
+            position: "absolute",
+          }}
+        />
+      </Animated.View>
+    );
+  }
+);
 
 type Props = {
   movies: Movie[];
-  scrollX: Animated.Value;
+  scrollX: Animated.SharedValue<number>;
 };
 
 const { width, height } = Dimensions.get("window");
@@ -22,44 +66,15 @@ const ITEM_SIZE = Platform.OS === "ios" ? width * 0.72 : width * 0.74;
 const Backdrop = ({ movies, scrollX }: Props) => {
   return (
     <View style={{ position: "absolute", width, height: BACKDROP_HEIGHT }}>
-      <FlatList
+      <Animated.FlatList
         horizontal
         data={movies.reverse()}
         keyExtractor={(item) => `${item.key} + ${item.title}`}
         removeClippedSubviews={false}
         contentContainerStyle={{ width, height: BACKDROP_HEIGHT }}
-        renderItem={({ item, index }) => {
-          if (!item.backdrop) {
-            return null;
-          }
-          const inputRange = [(index - 2) * ITEM_SIZE, (index - 1) * ITEM_SIZE];
-          const translateX = scrollX.interpolate({
-            inputRange: inputRange,
-            outputRange: [0, width],
-            extrapolate: "clamp",
-          });
-
-          return (
-            <Animated.View
-              removeClippedSubviews={false}
-              style={{
-                position: "absolute",
-                width: translateX,
-                height,
-                overflow: "hidden",
-              }}
-            >
-              <Image
-                source={{ uri: item.backdrop }}
-                style={{
-                  width,
-                  height: BACKDROP_HEIGHT,
-                  position: "absolute",
-                }}
-              />
-            </Animated.View>
-          );
-        }}
+        renderItem={({ item, index }) => (
+          <RenderItem item={item} index={index} scrollX={scrollX} />
+        )}
       />
       <LinearGradient
         colors={["rgba(0, 0, 0, 0)", "white"]}
