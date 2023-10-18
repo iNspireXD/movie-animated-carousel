@@ -137,7 +137,7 @@ export default function Page() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ alignItems: "center" }}
         scrollEventThrottle={16}
-        snapToInterval={ITEM_SIZE}
+        snapToInterval={ITEM_SIZE + 0.5}
         snapToAlignment="start"
         decelerationRate={0.9}
         bounces={false}
